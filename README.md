@@ -32,5 +32,4 @@ optional arguments:
 # Future Work
 
 - Add UMich Bus Services
-- Finish Notify option
 
