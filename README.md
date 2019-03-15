@@ -11,7 +11,7 @@ $ bus_stop --help
 usage: bus_stop [-h] [-V] [-H | -w | -p | -i stop_id] [-n [t]] [-d]
                 [-r route_id]
 
-CL application for checking Ann Arbor Public Bus
+CL application for checking Ann Arbor Public Bus and UMich Bus info
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -31,5 +31,6 @@ optional arguments:
 
 # Future Work
 
-- Add UMich Bus Services
+- Multiple stops at once
+- flag configuration file
 

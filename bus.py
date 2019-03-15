@@ -5,12 +5,13 @@ from datetime import timedelta
 import time
 import argparse
 import os
+import functools
 
 __VERSION__ = '0.1'
 
 BUS_API_ENDPOINT='http://www.theride.org/DesktopModules/AATA.EndPoint/Proxy.ashx?method=getpredictionsfromxml&stpid={}'
 UMICH_BUS_API_ENDPOINT='http://mbus.doublemap.com/map/v2/eta?stop={}' #['etas']['stopID']['etas']
-UMICH_BUS_API_BUS_LIST='http://mbus.doublemap.com/map/v2/routes' # list all bus routes with name, id, stops, active
+UMICH_BUS_API_BUS_LIST='http://mbus.doublemap.com/map/v2/routes?id={}' # list all bus routes with name, id, stops, active
 UMICH_BUS_API_STOP_LIST='http://mbus.doublemap.com/map/v2/stops?id={}' # get a stop name/code from id
 
 
@@ -34,7 +35,35 @@ def mac_pop_up(title, text):
     os.system("""osascript -e 'display notification "{}" with title "{}"'
               """.format(text, title))
 
-def _get_stop_info(stop_id, route_id='*'):
+@functools.lru_cache()
+def get_umich_route_name_from_id(route_id):
+    try:
+        route_info = requests.get(UMICH_BUS_API_BUS_LIST.format(route_id)).json()
+        return route_info['name'], route_info['short_name']
+    except KeyError:
+        raise ValueError('No bus with route_id = {}'.format(route_id))
+
+def get_umich_bus_stop_info(stop_id):
+    try:
+        stop_loc = requests.get(UMICH_BUS_API_ENDPOINT.format(stop_id)).json()['etas'][str(stop_id)]['etas']
+    except KeyError:
+        print('Currently No Buses for that Stop')
+
+    if not isinstance(stop_loc, list): stop_loc = [stop_loc]
+
+    stop_info = []
+    for bus in stop_loc:
+        name, short_name = get_umich_route_name_from_id(bus['route'])
+        stop_info.append({
+            'name': name,
+            'short_name': short_name, 
+            'route': bus['route'],
+            'eta': bus['avg'],
+            })
+    # print(stop_info)
+    return stop_info 
+
+def get_mride_bus_stop_info(stop_id):
     # print(requests.get(BUS_API_ENDPOINT.format(stop_id)).json())
     try:
         stop_loc = requests.get(BUS_API_ENDPOINT.format(stop_id)).json()['bustime-response']['prd']
@@ -44,22 +73,42 @@ def _get_stop_info(stop_id, route_id='*'):
 
     if not isinstance(stop_loc, list): stop_loc = [stop_loc]
 
+    stop_info = []
+    for bus in stop_loc:
+        stop_info.append({
+            'name': bus['des'],
+            'short_name': bus['rt'],
+            'route': bus['rt'],
+            'eta': bus['prdctdn'],
+            })
+    return stop_info 
+
+def is_mride_id(stop_id):
+    return stop_id > 999
+
+def _get_stop_info(stop_id, route_id='*'):
+    if is_mride_id(stop_id):
+        stop_info = get_mride_bus_stop_info(stop_id)
+    else:
+        stop_info = get_umich_bus_stop_info(stop_id)
+
     if route_id == 'sort':
-        stop_loc.sort(key=lambda x: x['rt'])
+        stop_info.sort(key=lambda x: x['short_name'])
     elif route_id == '*':
         pass
     else: #isinstance(route_id, int)
-        stop_loc = [x for x in stop_loc if int(x['rt']) == int(route_id)]
-    return stop_loc
+        stop_info = [x for x in stop_info if str(x['short_name']) == str(route_id)]
+    return stop_info
+
 
 def setup_notify(stop_id, route_id, minutes):
     stop_loc = _get_stop_info(stop_id, route_id)
-    time_left = min([int(bus['prdctdn']) for bus in stop_loc])
+    time_left = min([int(bus['eta']) for bus in stop_loc])
     print(f"time_left = {time_left}")
     while time_left > minutes:
-        time.sleep((time_left*60 - minutes*60)/2) # wait half expected amount
+        time.sleep(60*(time_left - minutes)/2) # wait half expected amount
         stop_loc = _get_stop_info(stop_id, route_id)
-        time_left = min([int(bus['prdctdn']) for bus in stop_loc])
+        time_left = min([int(bus['eta']) for bus in stop_loc])
         print(f"time_left = {time_left}")
     mac_pop_up("Bus Stop", "Time to go, bus will be here in {} minutes".format(time_left))
 
@@ -68,7 +117,7 @@ def display_stop_info(stop_id, route_id='sort'):
 
     try:
         for bus in stop_loc:
-            print("{:<25} {:>10}min  {:%I:%M %p}".format(bus['des'].strip(),bus['prdctdn'], dt.now()+timedelta(minutes=int(bus['prdctdn']))))
+            print("{:<25} {:>10}min  {:%I:%M %p}".format(bus['name'].strip(),bus['eta'], dt.now()+timedelta(minutes=int(bus['eta']))))
     except ValueError:
         print(stop_loc)
 
@@ -77,7 +126,7 @@ def install():
 
 def parse_arguments():
 
-    parser = argparse.ArgumentParser(description='CL application for checking Ann Arbor Public Bus')
+    parser = argparse.ArgumentParser(description='CL application for checking Ann Arbor Public Bus and UMich Bus info')
     parser.add_argument('-V','--version', action="version", version=__VERSION__)
 
     stop_group = parser.add_mutually_exclusive_group()
@@ -87,7 +136,7 @@ def parse_arguments():
                         help='Access Beal & Hayward Stop information. Default if no stop option given.')
     stop_group.add_argument('-p','--pierpont', action="store_true",
                         help='Access Pierpont Commons Stop information')
-    stop_group.add_argument('-i','--id', type=int, nargs=1, metavar='stop_id',
+    stop_group.add_argument('-i','--id', type=int, metavar='stop_id',
                         help='Access the information for the stop with given id')
 
     parser.add_argument('-n','--notify', type=int, nargs='?', const=6, default=0, metavar='t',
