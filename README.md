@@ -7,8 +7,40 @@ This is specifically designed to make accessing my most frequent stops easy, but
 
 ## Install
 
+Requires Python 3
+
 ```bash
-pip install https://github.com/cjblocker/mride
+pip install git+https://github.com/cjblocker/mride.git
+```
+
+## Examples
+
+Use `-d` to display stop information. (Also the default).
+```bash
+$ mride -d
+22 | Pontiac - Dhu Varren to PPC    | 18 min | 01:48 PM
+66 | Carpenter - Huron Pkwy to Meij | 23 min | 01:53 PM
+22 | Pontiac - Dhu Varren to PPC    | 44 min | 02:14 PM
+66 | Carpenter - Huron Pkwy to Meij | 53 min | 02:23 PM
+```
+
+Use the `-r` command to pick a route or set to `sort` to sort by route.
+Use `-i` to pick a stop by ID. Default is Beal & Hayward Public Stop.
+```bash
+$ mride -r sort -i 98 #98 is outside pierpont
+CS | Commuter South                 |  0 min | 01:31 PM
+CS | Commuter South                 | 11 min | 01:42 PM
+D2D| Diag to Diag to CCTC & Oxford  | 15 min | 01:46 PM
+D2D| Diag to Diag to CCTC & Oxford  | 26 min | 01:57 PM
+NW | Northwood                      |  3 min | 01:34 PM
+NW | Northwood                      | 12 min | 01:43 PM
+```
+
+UMich routes are denoted by two letters
+```bash
+$ mride -r BB -i 101 #101 is across the street from pierpont, heading south
+BB | Bursley-Baits                  |  6 min | 01:39 PM
+BB | Bursley-Baits                  |  7 min | 01:40 PM
 ```
 
 ## Usage
