@@ -10,7 +10,7 @@ import curses
 
 __VERSION__ = "0.1"
 
-MRIDE_BUS_API_ENDPOINT = "http://www.theride.org/DesktopModules/AATA.EndPoint/Proxy.ashx?method=getpredictionsfromxml&stpid={}"
+MRIDE_BUS_API_ENDPOINT = "https://www.theride.org/api/ServiceData?method=predictionsforstop&stpid={}&_=1647884858891"
 UMICH_BUS_API_ENDPOINT = (
     "http://mbus.doublemap.com/map/v2/eta?stop={}"  # ['etas']['stopID']['etas']
 )
